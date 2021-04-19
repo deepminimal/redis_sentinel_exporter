@@ -8,14 +8,14 @@ jobs:
     - name: "Unit Tests"
       script: go test -race -coverprofile=coverage.txt -covermode=atomic
       after_success: bash <(curl -s https://codecov.io/bash)
-    - name: "E2E Tests - 6.0.6"
-      script: ./e2e.sh 6.0.6 5.0 0 0
-    - name: "E2E Tests - 6.0.6 (AUTH)"
-      script: ./e2e.sh 6.0.6 5.0 1 0
-    - name: "E2E Tests - 5.0.9"
-      script: ./e2e.sh 5.0.9 5.0 0 0
-    - name: "E2E Tests - 5.0.9 (AUTH from File)"
-      script: ./e2e.sh 5.0.9 5.0 1 1
+    - name: "E2E Tests - 6.2.1"
+      script: ./e2e.sh 6.2.1 5.0 0 0
+    - name: "E2E Tests - 6.2.1 (AUTH)"
+      script: ./e2e.sh 6.2.1 5.0 1 0
+    - name: "E2E Tests - 5.0.12"
+      script: ./e2e.sh 5.0.12 5.0 0 0
+    - name: "E2E Tests - 5.0.12 (AUTH from File)"
+      script: ./e2e.sh 5.0.12 5.0 1 1
     - name: "E2E Tests - 4.0.14"
       script: ./e2e.sh 4.0.14 3.2 0 0
     - name: "E2E Tests - 3.2.13"
