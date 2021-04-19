@@ -14,8 +14,13 @@ This is a simple server that scrapes Redis Sentinel stats and exports them via H
 * `-log-format` (env `LOG_FORMAT`) – Log format, valid options are txt and json. (default `txt`)
 * `-namespace` (env `NAMESPACE`) – Namespace for metrics. (default `redis_sentinel`)
 * `-sentinel.addr` (env `SENTINEL_ADDR`) – Redis Sentinel host:port. (default `redis://127.0.0.1:26379`)
-* `-sentinel.password` (env `SENTINEL_PASSWORD`) – Redis Sentinel password (optional).
+* `-sentinel.connection-timeout` (env `SENTINEL_CONNECTION_TIMEOUT`) – Timeout for connection to Redis Sentinel instance. (default `5s`)
 * `-sentinel.password-file` (env `SENTINEL_PASSWORD_FILE`) - Path to Redis Sentinel password file (optional).
+* `-sentinel.password` (env `SENTINEL_PASSWORD`) – Redis Sentinel password (optional).
+* `-sentinel.skip-tls-verification` (env `SENTINEL_SKIP_TLS_VERIFICATION`) – Skip TLS verification. (default `false`)
+* `-sentinel.tls-ca-cert-file` (env `SENTINEL_TLS_CA_CERT_FILE`) – Name of the CA certificate file, including full path (optional).
+* `-sentinel.tls-client-cert-file` (env `SENTINEL_TLS_CLIENT_CERT_FILE`) – Name of the client certificate file, including full path (optional).
+* `-sentinel.tls-client-key-file` (env `SENTINEL_TLS_CLIENT_KEY_FILE`) – Name of the client key file, including full path (optional).
 * `-version` – Prints version and exit.
 * `-web.listen-address` (env `LISTEN_ADDRESS`) – Address to listen on for web interface and telemetry. (default `:9355`)
 * `-web.telemetry-path` (env `TELEMETRY_PATH`) – Path under which to expose metrics. (default `/metrics`)

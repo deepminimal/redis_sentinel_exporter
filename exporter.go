@@ -1,11 +1,14 @@
 package main
 
 import (
+	"crypto/tls"
+	"net/http"
 	"strings"
 	"time"
 
 	"github.com/gomodule/redigo/redis"
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/common/version"
 	"github.com/sirupsen/logrus"
 )
 
@@ -55,32 +58,28 @@ var (
 )
 
 type Exporter struct {
-	addr             string
-	namespace        string
-	sentinelPassword string
-	metrics          map[string]*prometheus.GaugeVec
-	duration         prometheus.Gauge
-	scrapeErrors     prometheus.Gauge
-	totalScrapes     prometheus.Counter
+	o            *Options
+	metrics      map[string]*prometheus.GaugeVec
+	duration     prometheus.Gauge
+	scrapeError  prometheus.Gauge
+	totalScrapes prometheus.Counter
 }
 
-func NewRedisSentinelExporter(addr, namespace string, sentinelPassword string) *Exporter {
+func NewRedisSentinelExporter(options *Options) *Exporter {
 	e := &Exporter{
-		addr:             addr,
-		namespace:        namespace,
-		sentinelPassword: sentinelPassword,
+		o: options,
 		duration: prometheus.NewGauge(prometheus.GaugeOpts{
-			Namespace: namespace,
+			Namespace: options.MetricsNamespace,
 			Name:      "exporter_last_scrape_duration_seconds",
 			Help:      "The last scrape duration.",
 		}),
 		totalScrapes: prometheus.NewCounter(prometheus.CounterOpts{
-			Namespace: namespace,
+			Namespace: options.MetricsNamespace,
 			Name:      "exporter_scrapes_total",
 			Help:      "Current total redis scrapes.",
 		}),
-		scrapeErrors: prometheus.NewGauge(prometheus.GaugeOpts{
-			Namespace: namespace,
+		scrapeError: prometheus.NewGauge(prometheus.GaugeOpts{
+			Namespace: options.MetricsNamespace,
 			Name:      "exporter_last_scrape_error",
 			Help:      "The last scrape error status.",
 		}),
@@ -93,24 +92,24 @@ func (e *Exporter) initGauges() {
 	e.metrics = map[string]*prometheus.GaugeVec{}
 
 	e.metrics["info"] = prometheus.NewGaugeVec(prometheus.GaugeOpts{
-		Namespace: e.namespace,
+		Namespace: e.o.MetricsNamespace,
 		Name:      "info",
 		Help:      "Information about Sentinel",
 	}, []string{"version", "build_id", "mode"})
 
 	// Masters
 	e.metrics["master_status"] = prometheus.NewGaugeVec(prometheus.GaugeOpts{
-		Namespace: e.namespace,
+		Namespace: e.o.MetricsNamespace,
 		Name:      "master_status",
 		Help:      "Status of master",
 	}, []string{"name", "address"})
 	e.metrics["master_slaves"] = prometheus.NewGaugeVec(prometheus.GaugeOpts{
-		Namespace: e.namespace,
+		Namespace: e.o.MetricsNamespace,
 		Name:      "master_slaves",
 		Help:      "Slaves of master",
 	}, []string{"name", "address"})
 	e.metrics["master_sentinels"] = prometheus.NewGaugeVec(prometheus.GaugeOpts{
-		Namespace: e.namespace,
+		Namespace: e.o.MetricsNamespace,
 		Name:      "master_sentinels",
 		Help:      "Sentinels of master",
 	}, []string{"name", "address"})
@@ -118,7 +117,7 @@ func (e *Exporter) initGauges() {
 	// All other metrics
 	for metricOrigName, metricOutName := range metricMap {
 		e.metrics[metricOrigName] = prometheus.NewGaugeVec(prometheus.GaugeOpts{
-			Namespace: e.namespace,
+			Namespace: e.o.MetricsNamespace,
 			Name:      metricOutName,
 			Help:      metricOutName,
 		}, []string{})
@@ -128,7 +127,7 @@ func (e *Exporter) initGauges() {
 func (e *Exporter) Describe(ch chan<- *prometheus.Desc) {
 	ch <- e.duration.Desc()
 	ch <- e.totalScrapes.Desc()
-	ch <- e.scrapeErrors.Desc()
+	ch <- e.scrapeError.Desc()
 
 	for _, m := range e.metrics {
 		m.Describe(ch)
@@ -137,33 +136,39 @@ func (e *Exporter) Describe(ch chan<- *prometheus.Desc) {
 
 func (e *Exporter) scrapeInfo() (string, error) {
 	options := []redis.DialOption{
-		redis.DialConnectTimeout(5 * time.Second),
-		redis.DialReadTimeout(5 * time.Second),
-		redis.DialWriteTimeout(5 * time.Second),
-		redis.DialPassword(e.sentinelPassword),
+		redis.DialConnectTimeout(e.o.ConnectionTimeout),
+		redis.DialReadTimeout(e.o.ConnectionTimeout),
+		redis.DialWriteTimeout(e.o.ConnectionTimeout),
+		redis.DialPassword(e.o.Password),
+
+		redis.DialTLSConfig(&tls.Config{
+			InsecureSkipVerify: e.o.SkipTLSVerification,
+			Certificates:       e.o.ClientCertificates,
+			RootCAs:            e.o.CaCertificates,
+		}),
 	}
 
-	logrus.Debugf("Trying DialURL(): %s", e.addr)
-	c, err := redis.DialURL(e.addr, options...)
+	logrus.Debugf("Trying DialURL(): %s", e.o.Addr)
+	c, err := redis.DialURL(e.o.Addr, options...)
 
 	if err != nil {
 		logrus.Debugf("DialURL() failed, err: %s", err)
-		if frags := strings.Split(e.addr, "://"); len(frags) == 2 {
+		if frags := strings.Split(e.o.Addr, "://"); len(frags) == 2 {
 			logrus.Debugf("Trying: Dial(): %s %s", frags[0], frags[1])
 			c, err = redis.Dial(frags[0], frags[1], options...)
 		} else {
-			logrus.Debugf("Trying: Dial(): tcp %s", e.addr)
-			c, err = redis.Dial("tcp", e.addr, options...)
+			logrus.Debugf("Trying: Dial(): tcp %s", e.o.Addr)
+			c, err = redis.Dial("tcp", e.o.Addr, options...)
 		}
 	}
 
 	if err != nil {
-		logrus.Debugf("aborting for addr: %s - redis sentinel err: %s", e.addr, err)
+		logrus.Debugf("aborting for addr: %s - redis sentinel err: %s", e.o.Addr, err)
 		return "", err
 	}
 
 	defer c.Close()
-	logrus.Debugf("connected to: %s", e.addr)
+	logrus.Debugf("connected to: %s", e.o.Addr)
 
 	body, err := redis.String(c.Do("info"))
 	if err != nil {
@@ -201,13 +206,8 @@ func (e *Exporter) setMetrics(i *SentinelInfo) {
 }
 
 func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
-	var errorCount int
 	now := time.Now().UnixNano()
 	e.totalScrapes.Inc()
-
-	ch <- e.duration
-	ch <- e.totalScrapes
-	ch <- e.scrapeErrors
 
 	infoRaw, err := e.scrapeInfo()
 	metricRequiredKeys := metricBuildInfo
@@ -215,16 +215,37 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 		metricRequiredKeys = append(metricRequiredKeys, metricName)
 	}
 	if err != nil {
-		errorCount++
+		e.scrapeError.Set(1)
 	} else {
+		e.scrapeError.Set(0)
 		sentinelInfo := ParseInfo(infoRaw, metricRequiredKeys, true)
 		e.setMetrics(sentinelInfo)
 	}
 
-	e.scrapeErrors.Set(float64(errorCount))
 	e.duration.Set(float64(time.Now().UnixNano()-now) / 1000000000)
+
+	ch <- e.duration
+	ch <- e.totalScrapes
+	ch <- e.scrapeError
 
 	for _, m := range e.metrics {
 		m.Collect(ch)
 	}
+}
+
+func (e *Exporter) IndexHandler(w http.ResponseWriter, r *http.Request) {
+	_, _ = w.Write([]byte(`
+		<html>
+		<head><title>Redis Sentinel Exporter ` + version.Version + `</title></head>
+		<body>
+		<h1>Redis Sentinel Exporter ` + version.Version + `</h1>
+		<p><a href='` + e.o.MetricsPath + `'>Metrics</a></p>
+		<p><a href='https://github.com/leominov/redis_sentinel_exporter/blob/master/README.md'>Docs</a></p>
+		</body>
+		</html>
+	`))
+}
+
+func (e *Exporter) HealthyHandler(w http.ResponseWriter, r *http.Request) {
+	_, _ = w.Write([]byte(`ok`))
 }
