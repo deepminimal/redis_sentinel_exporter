@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -24,12 +25,13 @@ var (
 	metricsPath                 = flag.String("web.telemetry-path", GetStringEnv("TELEMETRY_PATH", "/metrics"), "Path under which to expose metrics.")
 	namespace                   = flag.String("namespace", GetStringEnv("NAMESPACE", "redis_sentinel"), "Namespace for metrics.")
 	sentinelAddr                = flag.String("sentinel.addr", GetStringEnv("SENTINEL_ADDR", "redis://127.0.0.1:26379"), "Redis Sentinel host:port.")
+	sentinelConnectionTimeout   = flag.Duration("sentinel.connection-timeout", GetDurationEnv("SENTINEL_CONNECTION_TIMEOUT", 5*time.Second), "Timeout for connection to Redis Sentinel instance.")
 	sentinelPassword            = flag.String("sentinel.password", GetStringEnv("SENTINEL_PASSWORD", ""), "Redis Sentinel password (optional).")
 	sentinelPasswordFile        = flag.String("sentinel.password-file", GetStringEnv("SENTINEL_PASSWORD_FILE", ""), "Path to Redis Sentinel password file (optional).")
+	sentinelSkipTLSVerification = flag.Bool("sentinel.skip-tls-verification", GetBoolEnv("SENTINEL_SKIP_TLS_VERIFICATION", false), "Skip TLS verification.")
 	sentinelTLSCaCertFile       = flag.String("sentinel.tls-ca-cert-file", GetStringEnv("SENTINEL_TLS_CA_CERT_FILE", ""), "Name of the CA certificate file, including full path (optional).")
 	sentinelTLSClientCertFile   = flag.String("sentinel.tls-client-cert-file", GetStringEnv("SENTINEL_TLS_CLIENT_CERT_FILE", ""), "Name of the client certificate file, including full path (optional).")
 	sentinelTLSClientKeyFile    = flag.String("sentinel.tls-client-key-file", GetStringEnv("SENTINEL_TLS_CLIENT_KEY_FILE", ""), "Name of the client key file, including full path (optional).")
-	sentinelSkipTLSVerification = flag.Bool("sentinel.skip-tls-verification", GetBoolEnv("SENTINEL_SKIP_TLS_VERIFICATION", false), "Skip TLS verification.")
 	versionPrint                = flag.Bool("version", false, "Prints version and exit.")
 )
 
@@ -90,6 +92,7 @@ func main() {
 		Addr:                *sentinelAddr,
 		CaCertificates:      tlsCaCertificates,
 		ClientCertificates:  tlsClientCertificates,
+		ConnectionTimeout:   *sentinelConnectionTimeout,
 		ListenAddress:       *listenAddress,
 		MetricsNamespace:    *namespace,
 		MetricsPath:         *metricsPath,

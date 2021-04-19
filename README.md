@@ -14,6 +14,7 @@ This is a simple server that scrapes Redis Sentinel stats and exports them via H
 * `-log-format` (env `LOG_FORMAT`) – Log format, valid options are txt and json. (default `txt`)
 * `-namespace` (env `NAMESPACE`) – Namespace for metrics. (default `redis_sentinel`)
 * `-sentinel.addr` (env `SENTINEL_ADDR`) – Redis Sentinel host:port. (default `redis://127.0.0.1:26379`)
+* `-sentinel.connection-timeout` (env `SENTINEL_CONNECTION_TIMEOUT`) – Timeout for connection to Redis Sentinel instance. (default `5s`)
 * `-sentinel.password-file` (env `SENTINEL_PASSWORD_FILE`) - Path to Redis Sentinel password file (optional).
 * `-sentinel.password` (env `SENTINEL_PASSWORD`) – Redis Sentinel password (optional).
 * `-sentinel.skip-tls-verification` (env `SENTINEL_SKIP_TLS_VERIFICATION`) – Skip TLS verification. (default `false`)

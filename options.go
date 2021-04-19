@@ -4,12 +4,14 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"errors"
+	"time"
 )
 
 type Options struct {
 	Addr                string
 	CaCertificates      *x509.CertPool
 	ClientCertificates  []tls.Certificate
+	ConnectionTimeout   time.Duration
 	ListenAddress       string
 	MetricsNamespace    string
 	MetricsPath         string

@@ -136,9 +136,9 @@ func (e *Exporter) Describe(ch chan<- *prometheus.Desc) {
 
 func (e *Exporter) scrapeInfo() (string, error) {
 	options := []redis.DialOption{
-		redis.DialConnectTimeout(5 * time.Second),
-		redis.DialReadTimeout(5 * time.Second),
-		redis.DialWriteTimeout(5 * time.Second),
+		redis.DialConnectTimeout(e.o.ConnectionTimeout),
+		redis.DialReadTimeout(e.o.ConnectionTimeout),
+		redis.DialWriteTimeout(e.o.ConnectionTimeout),
 		redis.DialPassword(e.o.Password),
 
 		redis.DialTLSConfig(&tls.Config{
