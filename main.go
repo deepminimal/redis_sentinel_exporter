@@ -37,7 +37,7 @@ func main() {
 	flag.Parse()
 
 	if *versionPrint {
-		fmt.Println(version.Print("redis sentinel exporter"))
+		fmt.Println(version.Print("redis_sentinel_exporter"))
 		os.Exit(0)
 	}
 
