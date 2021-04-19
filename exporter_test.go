@@ -12,4 +12,9 @@ func TestNewRedisSentinelExporter(t *testing.T) {
 		MetricsNamespace: "ns",
 	})
 	assert.NotNil(t, e)
+
+	_, err := e.scrapeInfo()
+	if assert.Error(t, err) {
+		assert.Contains(t, err.Error(), "connection refused")
+	}
 }
