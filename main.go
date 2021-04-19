@@ -104,6 +104,8 @@ func main() {
 
 	prometheus.MustRegister(exporter)
 	prometheus.MustRegister(version.NewCollector(options.MetricsNamespace + "_exporter"))
+	// Deprecated and will be removed in 2.0, use `redis_sentinel_exporter_build_info`
+	prometheus.MustRegister(version.NewCollector(options.MetricsNamespace))
 
 	http.Handle(options.MetricsPath, promhttp.Handler())
 	http.HandleFunc("/healthy", exporter.HealthyHandler)
