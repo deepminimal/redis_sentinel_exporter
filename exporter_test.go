@@ -7,6 +7,9 @@ import (
 )
 
 func TestNewRedisSentinelExporter(t *testing.T) {
-	e := NewRedisSentinelExporter("127.0.0.1:8080", "ns", "")
+	e := NewRedisSentinelExporter(&Options{
+		Addr:             "127.0.0.1:8080",
+		MetricsNamespace: "ns",
+	})
 	assert.NotNil(t, e)
 }
