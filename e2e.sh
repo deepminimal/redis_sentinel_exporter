@@ -88,7 +88,7 @@ if [[ $offline_scrape == "1" ]]; then
 
   failed="0"
   for i in {1..5} ; do
-    if ! ./src/redis-cli -p 26379 PING; then
+    if ! ../src/redis-cli -p 26379 PING; then
       failed="1"
       break
     fi
