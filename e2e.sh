@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Usage:   ./e2e.sh ${RedisVersion} ${FixtureVersion} ${PasswordProtected} ${PasswordFromFile}
-# Example: ./e2e.sh 6.0.6 5.0 1 0
+# Usage:   ./e2e.sh ${RedisVersion} ${FixtureVersion} ${PasswordProtected} ${PasswordFromFile} ${OfflineScrape}
+# Example: ./e2e.sh 6.0.6 5.0 1 0 0
 
 set -x
 set -o pipefail
@@ -10,6 +10,7 @@ redis_version="$1"
 fixture_version="$2"
 require_pass="$3"
 pass_from_file="$4"
+offline_scrape="$5"
 
 skip_re="^(redis_sentinel_build_info|redis_sentinel_exporter_build_info|redis_sentinel_info|redis_sentinel_used_cpu|redis_sentinel_exporter_last_scrape_duration_seconds|redis_sentinel_uptime_in_seconds|redis_sentinel_connections_received_total|redis_sentinel_net|redis_sentinel_instantaneous|redis_sentinel_process_id)"
 
@@ -17,7 +18,11 @@ echo "==> Redis $redis_version"
 
 rm -rf "redis-${redis_version}" "redis-${redis_version}.tar.gz"
 
-wget "http://download.redis.io/releases/redis-${redis_version}.tar.gz"
+if ! wget "http://download.redis.io/releases/redis-${redis_version}.tar.gz"; then
+  echo "Failed to download"
+  exit 1
+fi
+
 tar -zxvf "redis-${redis_version}.tar.gz"
 cd "redis-${redis_version}"
 make
@@ -63,7 +68,10 @@ fi
 
 cd ../
 
-go build
+if ! go build; then
+  echo "Failed to build"
+  exit 1
+fi
 
 if [[ $require_pass == "0" ]]; then
   nohup ./redis_sentinel_exporter --debug &
@@ -78,6 +86,21 @@ fi
 
 wget --retry-connrefused --tries=5 -O - "127.0.0.1:9355/metrics"| grep "redis_" | grep -E -v "${skip_re}" > "e2e-output.txt"
 
-diff -u \
+if ! diff -u \
   "test_data/e2e-output-v${fixture_version}.txt" \
-  "e2e-output.txt"
+  "e2e-output.txt"; then
+  echo "Found diff"
+  exit 1
+fi
+
+if [[ $offline_scrape == "1" ]]; then
+  kill -9 "$(lsof -t -i:26379)"
+
+  wget --retry-connrefused --tries=5 -O - "127.0.0.1:9355/metrics"| grep "redis_" | grep -E -v "${skip_re}" > "e2e-output-offline.txt"
+  if ! diff -u \
+    "test_data/e2e-output-v${fixture_version}-offline.txt" \
+    "e2e-output-offline.txt"; then
+    echo "Found diff"
+    exit 1
+  fi
+fi

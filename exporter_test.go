@@ -40,6 +40,8 @@ func TestNewRedisSentinelExporter(t *testing.T) {
 			},
 		},
 	})
+
+	e.resetMetrics()
 }
 
 func TestExporter_IndexHandler(t *testing.T) {

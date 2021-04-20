@@ -205,6 +205,12 @@ func (e *Exporter) setMetrics(i *SentinelInfo) {
 	}
 }
 
+func (e *Exporter) resetMetrics() {
+	for _, gauge := range e.metrics {
+		gauge.Reset()
+	}
+}
+
 func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 	now := time.Now().UnixNano()
 	e.totalScrapes.Inc()
@@ -216,6 +222,8 @@ func (e *Exporter) Collect(ch chan<- prometheus.Metric) {
 	}
 	if err != nil {
 		e.scrapeError.Set(1)
+		// Cleanup metrics from previous success scrape
+		e.resetMetrics()
 	} else {
 		e.scrapeError.Set(0)
 		sentinelInfo := ParseInfo(infoRaw, metricRequiredKeys, true)
