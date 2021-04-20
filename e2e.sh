@@ -10,6 +10,7 @@ redis_version="$1"
 fixture_version="$2"
 require_pass="$3"
 pass_from_file="$4"
+offline_scrape="$5"
 
 skip_re="^(redis_sentinel_build_info|redis_sentinel_exporter_build_info|redis_sentinel_info|redis_sentinel_used_cpu|redis_sentinel_exporter_last_scrape_duration_seconds|redis_sentinel_uptime_in_seconds|redis_sentinel_connections_received_total|redis_sentinel_net|redis_sentinel_instantaneous|redis_sentinel_process_id)"
 
@@ -81,3 +82,12 @@ wget --retry-connrefused --tries=5 -O - "127.0.0.1:9355/metrics"| grep "redis_" 
 diff -u \
   "test_data/e2e-output-v${fixture_version}.txt" \
   "e2e-output.txt"
+
+if [[ $offline_scrape == "1" ]]; then
+  kill -9 "$(cat /var/run/redis-sentinel.pid)"
+
+  wget --retry-connrefused --tries=5 -O - "127.0.0.1:9355/metrics"| grep "redis_" | grep -E -v "${skip_re}" > "e2e-output-offline.txt"
+  diff -u \
+    "test_data/e2e-output-v${fixture_version}-offline.txt" \
+    "e2e-output-offline.txt"
+fi
