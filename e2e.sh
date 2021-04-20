@@ -84,21 +84,7 @@ diff -u \
   "e2e-output.txt"
 
 if [[ $offline_scrape == "1" ]]; then
-  kill -9 "$(cat /var/run/redis-sentinel.pid)"
-
-  failed="0"
-  for i in {1..5} ; do
-    if ! ../src/redis-cli -p 26379 PING; then
-      failed="1"
-      break
-    fi
-    sleep 1
-  done
-
-  if [[ $failed == "0" ]]; then
-    echo "Redis Sentinel up and running"
-    exit 1
-  fi
+  kill -9 "$(lsof -t -i:26379)"
 
   wget --retry-connrefused --tries=5 -O - "127.0.0.1:9355/metrics"| grep "redis_" | grep -E -v "${skip_re}" > "e2e-output-offline.txt"
   diff -u \
